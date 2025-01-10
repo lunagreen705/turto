@@ -43,7 +43,7 @@ async fn main() {
     };
 
     // 確保正確綁定埠
-    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string()); // 默認端口為 8080
+    let port = env::var("PORT").unwrap_or_else(|_| "10000".to_string()); // 默認端口為 8080
     let listener = TcpListener::bind(("0.0.0.0", port.parse().expect("Invalid port number")))
         .await
         .expect("Failed to bind to the specified port");

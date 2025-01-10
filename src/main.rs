@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::Local;
 use std::env;
-use tokio::net::TcpListener;
 use tracing::{error, level_filters::LevelFilter, warn};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt::layer, layer::SubscriberExt, EnvFilter};
@@ -42,21 +41,6 @@ async fn main() {
         Err(err) => return error!("Turto client initialization failed: {}", err),
     };
 
-    // 確保正確綁定埠
-    let port = env::var("PORT").unwrap_or_else(|_| "10000".to_string()); // 默認端口為 8080
-    let listener = TcpListener::bind(("0.0.0.0", port.parse().expect("Invalid port number")))
-        .await
-        .expect("Failed to bind to the specified port");
-
-    tracing::info!("Server is running on http://0.0.0.0:{}", port);
-
-    // 啟動機器人和健康檢查伺服器
-    tokio::spawn(async move {
-        if let Err(err) = http_health_check(listener).await {
-            error!("Health check server failed: {}", err);
-        }
-    });
-
     bot_process(bot).await;
 }
 
@@ -64,10 +48,10 @@ fn setup_env() -> Result<()> {
     if let Err(err) = dotenv::dotenv() {
         warn!("Failed to load .env file: {}", err);
     }
-    which_global("yt-dlp").context("yt-dlp is not installed")?; // 檢查 yt-dlp 是否安裝
-    load_config("config.toml")?; // 載入配置
-    load_help("help.toml")?; // 載入幫助文件
-    load_templates("templates.toml")?; // 載入消息模板
+    which_global("yt-dlp").context("yt-dlp is not installed")?;
+    load_config("config.toml")?;
+    load_help("help.toml")?;
+    load_templates("templates.toml")?;
     Ok(())
 }
 
@@ -100,16 +84,5 @@ async fn bot_process(mut bot: Turto) {
             bot.shutdown().await;
         }
         _ = bot.start() => ()
-    }
-}
-
-/// 簡單的健康檢查 HTTP 伺服器
-async fn http_health_check(listener: TcpListener) -> Result<()> {
-    loop {
-        let (socket, _) = listener.accept().await?; // 接受來自客戶端的連接
-        tokio::spawn(async move {
-            let _ = tokio::io::write_all(&socket, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK") // 返回健康檢查結果
-                .await;
-        });
     }
 }
